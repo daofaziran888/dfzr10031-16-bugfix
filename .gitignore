@@ -107,3 +107,6 @@ desktop.ini
 !**/.env.example
 !.env.example
 # END S11 LOCAL SNAPSHOT EXCLUSIONS
+
+# 关账账本本地落盘（服务重启恢复用）
+backend/data/ledger.json

@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.routers import ROUTERS
+from app.services.ledger import ledger_service
 from app.store import store
 
 app = FastAPI(title="数据分析实验与数据应用服务平台", version="1.0.0")
@@ -28,8 +29,13 @@ for module in ROUTERS:
 
 @app.get("/api/health")
 def health() -> dict[str, object]:
-    """健康检查：确认服务已经监听、示例数据已经就绪。"""
-    return {"ok": True, "app": settings.app_name, "modules": len(store.module_names())}
+    """健康检查：确认服务已经监听、示例数据已经就绪、关账账本已落盘可读。"""
+    return {
+        "ok": True,
+        "app": settings.app_name,
+        "modules": len(store.module_names()),
+        "ledger": ledger_service.catalog()["closed_days"],
+    }
 
 
 @app.get("/api/overview")

@@ -55,6 +55,44 @@
       </tbody>
     </table>
 
+    <section class="market-block">
+      <header class="panel-head">
+        <strong>按仓可用结余</strong>
+        <span class="muted">来自关账账本批次；未关账的日期不出数</span>
+      </header>
+      <form class="filter-bar" @submit.prevent="loadBalances">
+        <label class="filter-item">
+          <span>业务日</span>
+          <input v-model="balanceDate" type="date" />
+        </label>
+        <label class="filter-item">
+          <span>仓库</span>
+          <input v-model="balanceWarehouse" placeholder="留空看全部" />
+        </label>
+        <button class="btn" type="submit">取数</button>
+      </form>
+      <p v-if="balances && !balances.available" class="muted">{{ balances.reason }}</p>
+      <table v-else-if="balances" class="data-table compact">
+        <thead>
+          <tr><th>仓库</th><th>可用结余</th><th>当天变动</th><th>盘盈亏</th><th>来源批次</th><th>版本</th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in balances.warehouse_totals" :key="item.warehouse">
+            <td>{{ item.warehouse }}</td>
+            <td>{{ item.available_qty }}</td>
+            <td>{{ item.net_movement }}</td>
+            <td>{{ item.count_adjustment }}</td>
+            <td>{{ item.source_batch_id }}</td>
+            <td>{{ item.edition }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p v-if="balances?.available" class="muted">
+        截面 {{ balances.source_batch_id }}（第 {{ balances.edition }} 版），首发 {{ balances.first_batch_id }}；
+        第 {{ balances.edition }} 版以外的历史截面可在「关账账本」按批号回看。
+      </p>
+    </section>
+
     <footer class="page-foot">
       <span>共 {{ total }} 条数据集市记录</span>
       <span v-if="errorMessage" class="error-text">{{ errorMessage }}</span>
@@ -103,6 +141,9 @@ const filters = ref<Record<string, string>>({})
 const filterFields = columns.slice(0, 3)
 const showCreateModal = ref(false)
 const createFields = ref<Record<string, string>>({})
+const balanceDate = ref('2026-09-01')
+const balanceWarehouse = ref('')
+const balances = ref<any>(null)
 
 function updateStats() {
   const data = rows.value
@@ -160,6 +201,20 @@ async function runAction(action: string, row: Row) {
   }
 }
 
+async function loadBalances() {
+  const params = new URLSearchParams({ biz_date: balanceDate.value })
+  if (balanceWarehouse.value) params.set('warehouse', balanceWarehouse.value)
+  try {
+    const response = await request(`/api/data_mart/balances?${params.toString()}`)
+    if (!response.ok) {
+      throw new Error('可用结余读取失败')
+    }
+    balances.value = await response.json()
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : '可用结余读取失败'
+  }
+}
+
 async function reload() {
   errorMessage.value = ''
   const query = new URLSearchParams(filters.value as Record<string, string>).toString()
@@ -177,5 +232,15 @@ async function reload() {
   }
 }
 
-onMounted(reload)
+onMounted(async () => {
+  await reload()
+  await loadBalances()
+})
 </script>
+
+<style scoped>
+.market-block { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin: 12px 0; }
+.panel-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 14px; }
+.muted { color: var(--muted); font-size: 12px; }
+.compact th, .compact td { padding: 5px 8px; font-size: 12px; }
+</style>

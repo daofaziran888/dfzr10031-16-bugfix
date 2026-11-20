@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 
 from app.schemas import ActionResult, EntryPayload, PageResult
 from app.services.data_mart import DataMartService
+from app.services.ledger import ledger_service
 
 router = APIRouter(prefix="/api/data_mart", tags=["数据集市"])
 
@@ -21,6 +22,17 @@ def export_entries() -> dict[str, Any]:
     """导出数据集市清单：返回当前过滤条件下的全量数据。"""
     items, total = service.list_entries(page=1, size=10000)
     return {"module": "data_mart", "total": total, "items": items}
+
+
+@router.get("/balances")
+def available_balances(
+    biz_date: str = Query(description="业务日 YYYY-MM-DD"),
+    warehouse: str | None = Query(default=None, description="按仓过滤"),
+    sku: str | None = Query(default=None, description="按商品过滤"),
+) -> dict[str, Any]:
+    """集市口径的按仓可用结余：由关账批次账本生成，未关账的日期不给数。"""
+    payload = ledger_service.balances(biz_date, warehouse=warehouse, sku=sku)
+    return {"module": "data_mart", **payload}
 
 
 @router.get("", response_model=PageResult[dict])
